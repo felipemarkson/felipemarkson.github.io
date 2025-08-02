@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head prefix="og: https://ogp.me/ns# f-monteiro: https://ogp.me/ns/apps/f-monteiro#">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What I Learned at Rinha de Backend 2024 Q1</title>
+
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Felipe Monteiro | f-monteiro.com">
+    <meta name="twitter:title" content="What I Learned at Rinha de Backend 2024 Q1 | f-monteiro.com">
+    <meta name="twitter:description" content="In this first post on my newborn blog, I'd like to share what I learned during the second edition of the Rinha de Backend.">
+
+    <meta property="og:type" content="f-monteiro:read" />
+    <meta property="og:title" content="What I Learned at Rinha de Backend 2024 Q1" />
+    <meta property="og:url" content="https://f-monteiro.com/20240312.html"/>
+    <meta property="og:description" content="In this first post on my newborn blog, I'd like to share what I learned during the second edition of the Rinha de Backend.">
+
+    <meta itemprop="author" content="Felipe Monteiro">
+    <meta itemprop="name" content="What I Learned at Rinha de Backend 2024 Q1">
+    <meta itemprop="description" content="In this first post on my newborn blog, I'd like to share what I learned during the second edition of the Rinha de Backend.">
+
+    <meta name="author" content="Felipe Monteiro"/>
+    <meta name="description" content="In this first post on my newborn blog, I'd like to share what I learned during the second edition of the Rinha de Backend.">
+    <meta name="keywords" content="Programming blog, beginner tutorials, C, Linux, C++, programming, SQL, database, technology, rust, node.js, javascript, react, framework, techonology, golang"/>
+    <meta name="distribution" content="Global"/>
+    <meta name="rating" content="General"/>
+    <meta name="doc-class" content="Completed"/>
+
+    <link rel="stylesheet" type="text/css" href="styles.css"/>
+    <link rel="stylesheet" type="text/css" href="prism.css"/>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <script src="prism.js"></script>
+</head>
+<script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BlogPosting",
+      "name": "What I Learned at Rinha de Backend 2024 Q1",
+      "author": {
+        "@type": "Person",
+        "name": "Felipe Monteiro",
+        "url": "https://f-monteiro.com"
+      },
+      "datePublished": "2024-03-13"
+    }
+</script>
+<body>
+    <nav>
+        <a href="/">Site</a>
+        <a href="https://www.linkedin.com/in/felipemsmonteiro/?locale=en_US">LinkedIn</a>
+        <a href="https://github.com/felipemarkson/">GitHub</a>
+    </nav>
+
+    <h1>What I Learned at Rinha de Backend 2024 Q1</h1>
+    
+    <div>
+        <address>
+            <a rel="author" href="/">
+                Felipe Monteiro
+            </a>
+        </address>
+        <a rel="author" href="mailto:fmarkson@outlook.com">fmarkson@outlook.com</a>
+        <div>
+            <time pubdate datetime="2024-03-13" title="March 13, 2024">March 13, 2024</time>
+        </div>
+
+    </div>
+    <div><hr></div>
+    <i>TL;DR There's always something to learn. In this case: SQL and databases.</i>
+    <a href="https://github.com/felipemarkson/rinha-backend-q1-2024">Repository where I implemented the described solution.</a>
+
+    <p>
+        In this first post on my newborn blog, I'd like to talk about what I learned during the second edition of the
+        <a href="https://github.com/zanfranceschi/rinha-de-backend-2024-q1">Rinha de Backend</a>. The Rinha is a small challenge where you implement an architecture with a load balancer,
+        two API instances, and a database. This second edition focused on concurrency control.
+    </p>
+
+    <h2>Concurrency control</h2>
+
+    <p>
+        OpenAI's ChatGPT says:
+        <i>
+            It refers to techniques and mechanisms used to ensure that multiple processes or threads can access shared
+            resources (like data, variables, or files) consistently and in an orderly manner.
+        </i>
+    </p>
+
+    <p>
+        Wikipedia says:
+        <i>
+            Concurrency control ensures correct results from concurrent operations while returning these results as fast
+            as possible.
+        </i>
+    </p>
+
+    <p>
+        These concepts help us understand what was being evaluated in this edition. Since the architecture requires two
+        API instances, both may try to access and modify the same resources at the same time. An inexperienced developer
+        could easily end up with logically inconsistent states or “unexplainable” bugs… I thought it was a brilliant idea!
+    </p>
+
+    <p>
+        A simple way to demonstrate this issue is writing a program where two processes modify the same variable. Below,
+        a simple example in C:
+    </p>
+
+
+<pre><code class="language-c">// gcc main.c -lpthread  && ./a.out
+#include &ltstdio.h&gt
+#include &ltpthread.h&gt
+
+int number = 0;
+void* add_one(void*) {
+    for (int i = 0; i &lt 100000; i++)
+        number++;
+    return NULL;
+}
+
+int main() {
+    pthread_t thread_1;
+    pthread_create(&ampthread_1, NULL, add_one, NULL);
+
+    pthread_t thread_2;
+    pthread_create(&ampthread_2, NULL, add_one, NULL);
+
+    // Wait threads to finish
+    pthread_join(thread_1, NULL);
+    pthread_join(thread_2, NULL);
+
+    printf(&quotNumber: %d\n&quot, number);
+    return 0;
+}</code></pre>
+
+
+    <p>
+        I currently work as a systems engineer, and a large part of my job involves dealing with problems similar to
+        those proposed by Rinha. Countless times I've encountered bugs where processes try to read and write memory at
+        the same time, with functions that lock a resource and never release it, or with desynchronization between
+        processes during communication.
+    </p>
+    <p>
+        When I read about what the challenge was, I found it very interesting. A developer early in their career would
+        hardly face these kinds of issues—or if they did, someone more experienced would solve it using what I call
+        senior magic (topic for a future post).
+    </p>
+
+    <h2>The good, old, dirty C</h2>
+
+    <p>As in the previous edition, I decided to implement my solution in C. Today, most of my projects are written in
+        Python, C++11, and JavaScript. Not because I love these languages—they have many issues, especially C++ and
+        JavaScript—but because I'm more comfortable with them.
+    </p>
+
+    <p>My decision to use C (not C++) came purely from the challenge itself. In C, you rarely use external libraries,
+        and if you do, you probably have to compile them yourself. The C standard library rarely allocates memory
+        dynamically without your knowledge. So there are no dynamic types like lists, strings, or dictionaries. If you
+        need them, you must implement them—or you're using the wrong language.
+    </p>
+
+    <p>This is not a shortcoming of the language—C is like this by design. We still get updates (the latest standard is
+        C17, with C2x in testing), and there are no plans for dynamic types. C is made to be simple.
+    </p>
+
+    <p>This makes the basics of C easy to learn. If you're a programmer, you can master the syntax and build something
+        useful in an afternoon. The hard part isn't the syntax or tools—it's understanding how memory will be read,
+        accessed, and written.
+    </p>
+
+    <p>In slightly more complex C programs, you'll sometimes wonder: “What will the compiler do with this?” (The
+        compiler won't always be your friend.) Undefined behavior can be a problem (topic for a future post). You might
+        chase a bug that isn't even in your source code but in the binary, because you assumed something not defined by
+        the standard, and the compiler chose to interpret—or remove—those lines 🙂.
+    </p>
+
+    <h3>But what about safety? Isn't this a language from the past?</h3>
+
+    <p>
+        Since the solution was done in C, I can already imagine many beginner (and some not-so-beginner) developers
+        saying things like: “C isn't safe—look at this NSA report”, or “C is old—you should use Rust.” Most of them
+        don't actually know what they're talking about. Don't get me wrong—memory safety is important. But you know
+        what's even more important? Making lines of code do something useful.
+    </p>
+
+    <p>
+        C exists to meet the need for a simple, easy-to-implement, and easy-to-maintain language. Memory safety leads to
+        a more complex language (see Rust, for example).
+    </p>
+
+    <h2>Async or not Async, that is the question</h2>
+
+    <p>
+        Much is said about the speed of NodeJS and the V8 engine. NodeJS is fast—no argument there. But have you ever
+        wondered how it manages to be so fast compared to Python or Ruby? I won't go into too much detail here (topic
+        for a future post), but much of the speed comes from NodeJS's built-in async task management.
+    </p>
+    <p>
+        This async handling is all built on top of the <code>libuv</code> library (written in C), which under the hood
+        (on Linux) uses a 2002 technology called <code>epoll</code>.
+    </p>
+    <p>
+        Since Linux kernel 5.1 (2019), a new technology <code>io_uring</code> is available for async I/O. Unfortunately,
+        changing such a core piece of NodeJS will probably take a long time. Still, we can use this technology through
+        the C library <code>liburing</code>, which is available in most Linux distributions.
+    </p>
+    <p>
+        Since Rinha de Backend is about learning something new, I decided to use <code>io_uring</code> in my solution.
+        That said, using <code>epoll</code> or even threads would also have been good solutions.
+    </p>
+
+    <h3>Files? Isn't Rinha a web challenge?</h3>
+    <p>
+        It's worth noting that both <code>epoll</code> and <code>io_uring</code> only handle file reading/writing. Some
+        readers may not know this, but most processing time in a CRUD app isn't spent in your favorite language—it's in
+        the OS kernel reading and writing files. On Linux, a TCP socket (used in HTTP) is treated as a file by the OS.
+        So sending an HTTP request/response is just file I/O. That's why async I/O in libraries and languages operates
+        from a file-based perspective.
+    </p>
+
+    <h2>Just use Postgres for everything</h2>
+    <p>
+        One of my favorite articles on the internet is Stephan Schmidt's blog post:
+        <a href="https://www.amazingcto.com/postgres-for-everything/">Just Use Postgres for Everything</a>. What I love
+        most is how simple solutions can be when you master a technology. For English readers, I consider it essential
+        reading for any developer.
+    </p>
+    <p>So about the database choice—there's a lot to say. <i>Just Use Postgres for Everything</i>.</p>
+
+    <h2>SQL and concurrency</h2>
+
+    <p>
+        When I started building my solution for Rinha, I immediately thought: I can't be making multiple DB calls—I'll
+        create a stored procedure and make just one call.
+    </p>
+
+    <p>
+        Naive of me to think that was enough. To my surprise, concurrency issues can still happen even if everything
+        runs inside the database. Sure, it won't be as catastrophic as a multithreaded API bug, but operation order can
+        still be inconsistent.
+    </p>
+
+    <p>
+        I spent most of my Rinha time learning about SQL and concurrency and realized the database is a miracle worker.
+        However, knowing concurrency and parallelism basics really helps to understand table and row locking, optimistic
+        and pessimistic concurrency, and more.
+    </p>
+
+    <p>
+        Even with prior experience in concurrency issues, diving into DB-specific topics was very rewarding. I truly
+        believe I'm a better engineer today because of it.
+    </p>
+
+    <p>
+        A few days ago at work, I ran into a nasty database concurrency problem. Instead of crying to the DBA, I solved
+        it myself. It wasn't perfect, but it was enough for the situation.
+    </p>
+
+    <p>
+        After this learning journey, I now believe more than ever that solid SQL knowledge is essential. I admit I had
+        neglected it for a long time while focusing on other topics. No regrets—but if I could go back in time, I'd give
+        SQL a bit more attention.
+    </p>
+
+    <p>
+        You can see the solution in the
+        <a href="https://github.com/felipemarkson/rinha-backend-q1-2024">GitHub repository</a>
+    </p>
+
+    <strong>But what about Rust????</strong>
+    <p>
+        Ok, ok... I get it. But that's a topic for a future post...
+    </p>
+
+    <div><hr></div>
+    <footer>
+        <p>
+            The content on this page is licensed under
+            <a href="https://creativecommons.org/publicdomain/zero/1.0/" target="_blank"
+                rel="license noopener noreferrer" style="display:inline-block;">
+                CC0 1.0 Universal
+            </a>, a public domain license.
+        </p>
+        <i>
+            The opinions, hypotheses, and conclusions or recommendations expressed on this site
+            are the sole responsibility of the author and do not necessarily reflect the views of
+            their employers or partners.
+        </i>
+    </footer>
+</body>
+
+</html>

@@ -1,0 +1,43 @@
+@media only screen and (min-width: 600px) {
+    body {
+        max-width: 600px;
+        margin: auto;
+    }
+}
+
+@media only screen and (max-width: 600px) {
+    body {
+        margin-right: 10px;
+    }
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Serif:ital,opsz,wght@0,8..144,100..900;1,8..144,100..900&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap');
+
+body {
+    font-family: "Roboto", sans-serif;
+    font-optical-sizing: auto;
+}
+
+pre, code {
+    font-family: "Source Code Pro", monospace;
+    font-optical-sizing: auto;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    text-align: justify;
+    background-color: #222831;
+    color: #EEEEEE;
+    text-decoration: none;
+}
+
+a {
+    text-decoration: none;
+    color: #76ABAE
+}
+
+nav {
+    display: flex;
+    justify-content: space-around;
+}
